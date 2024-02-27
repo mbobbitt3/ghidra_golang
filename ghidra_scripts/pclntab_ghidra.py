@@ -34,5 +34,49 @@ def pclntab_check(addr):
 		return False
 	
 	return True
-#def 
-locate_pclntab_pe()
+def parse_pclntab(pclntab_addr):
+	prog = getCurrentProgram()
+	ptr_sz = getByte(pclntab_addr.add(7))
+	if ptr_sz == 8:
+		#we use long because long is of size 8 bytes
+		num_funcs = getLong(pclntab_addr.add(8)) #num_funcs in prog
+		start_text = getLong(pclntab_addr.add(8 + 2 * ptr_sz)) #start of text addr
+		offset = getLong(pclntab_addr.add(8 + 3 * ptr_sz)) #offset to function name table
+		name_tab = pclntab.add(offset) #addr of function name table
+		offset = getLong(pclntab_addr.add(8 + 7 * ptr_sz)) #offset within function table
+
+	else:
+		#we use int because int is of size 4 bytes
+		num_funcs = getInt(pclntab_addr.add(8)) #num_funcs in prog
+		start_text = getInt(pclntab_addr.add(8 + 2 * ptr_sz)) #start of text addr
+		offset = getInt(pclntab_addr.add(8 + 3 * ptr_sz)) #offset to function name table
+		name_tab = pclntab.add(offset) #addr of function name table
+		offset = getInt(pclntab_addr.add(8 + 7 * ptr_sz)) #offset within function table
+
+	func_table = pclntab_addr.add(offset)
+	print(func_table)
+	ft = func_table #shorter for referencing object
+	ftab_field_sz = 4 #4 fields per entry in table
+	print(num_funcs)
+	for i in range(num_funcs):
+		f_addr = prog.getAddressFactory().getAddress(hex(getInt(ft) + start_text).rstrip("L"))
+		ft = ft.add(ftab_field_sz)
+		fdata_off = getInt(ft)
+		ft = ft.add(ftab_field_sz)
+		name_ptr = func_table.add(fdata_off + ftab_field_sz)
+		name_addr = name_tab.add(getInt(name_ptr))
+		f_name = getDataAt(name_addr)
+		if f_name is None:
+			try:
+				f_name = createAsciiString(name_addr)
+			except:
+				print("data unable to be created at {0}".format(name_addr))
+				continue
+		f = getFunctionAt(f_addr)
+		if f is not None:
+			fname_old  =  f.getName()
+			f.setName(f_name.getValue().replace(" ", ""), USER_DEFINED)
+		else:
+			f = createFunction(f_addr, f_name.getValue())
+pclntab = locate_pclntab_pe()
+parse_pclntab(pclntab)
