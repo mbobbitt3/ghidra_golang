@@ -41,9 +41,6 @@ def dynamic_str_recovery():
 							d_addr = inst_in.getAddress().getOffset()
 							d_addr = getAddr(d_addr)
 							data = getDataAt(d_addr)
-							if data is not None:
-								print(d_addr)
-								print(data.hasStringValue())			
 							if data is not None and data.isPointer():
 								str_len = getByte(d_addr.add(8))
 								d = data.getValue()
@@ -53,16 +50,17 @@ def dynamic_str_recovery():
 								except:
 									print("unable to make string using PTR_DATA")
 
-							elif data is not None and data.hasStringValue():
+							else:
+								print("elif hit")
 								next_inst = insts.next()
 								if next_inst.getMnemonicString() == "MOV":
 									pcode = next_inst.getPcode()
 									for param in pcode:
 										nxt_inst_in = param.getInput(0)
 										if nxt_inst_in.isConstant():
-											str_len = next_inst_in
+											str_len = nxt_inst_in.getOffset()
 											try:
-												print("updated ", str_len)
+												print("updated ", nxt_inst_in.getOffset())
 												print("updated ", d_addr)
 												rec_string = createAsciiString(d_addr, str_len)
 											except:
@@ -72,8 +70,8 @@ def dynamic_str_recovery():
 											break
 								else:
 									break
-							else:
-								break
+							#else:
+							#	break
 				
 				else:
 					continue
