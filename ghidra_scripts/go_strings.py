@@ -23,42 +23,61 @@ def getAddr(off):
 def dynamic_str_recovery():
 	p = getCurrentProgram()
 	fm = p.getFunctionManager()
-	addr = getAddr(0x00483bc0)
-	f = fm.getFunctionContaining(addr)
+	funcs = fm.getFunctions(True)
 	lst = p.getListing()
-	f_body = f.getBody()
-	insts = lst.getInstructions(f_body, True)
-	while insts.hasNext():
-		inst = insts.next() #first instruction init value for inst iterator
-		if inst.getMnemonicString() == "LEA":
-			pcode = inst.getPcode()
-			print("{}".format(inst))
-			for param in pcode:
-	#			print("  {}".format(param))
-				if param.getOpcode() == 1: #int opcode for COPY operation
-					inst_in = param.getInput(0) 
-					if inst_in.isConstant():
-						d_addr = inst_in.getAddress().getOffset()
-						d_addr = getAddr(d_addr)
-						data = getDataAt(d_addr)
-						if data is not None and data.isPointer():
-							str_len = getByte(d_addr.add(8))
-							d = data.getValue()
-							try:
-								print(str_len)
-								rec_string = createAsciiString(d, str_len)
-								print(rec_string)
-							except:
-								print("unable to make string")
-								continue
-					else:
-						continue
+	for f in funcs:
+		if "main." in f.getName():
+			f_body = f.getBody()
+			insts = lst.getInstructions(f_body, True)
+			while insts.hasNext():
+				inst = insts.next() #first instruction init value for inst iterator
+				if inst.getMnemonicString() == "LEA":
+					pcode = inst.getPcode()
+					for param in pcode:
+			#			print("  {}".format(param))
+						#if param.getOpcode() == 1: #int opcode for COPY operation
+						inst_in = param.getInput(0) 
+						if inst_in.isConstant():
+							d_addr = inst_in.getAddress().getOffset()
+							d_addr = getAddr(d_addr)
+							data = getDataAt(d_addr)
+							if data is not None and data.isPointer():
+								str_len = getByte(d_addr.add(8))
+								d = data.getValue()
+								try:
+									rec_string = createAsciiString(d, str_len)
+									print(rec_string)
+								except:
+									print("unable to make string using PTR_DATA")
+
+							else:
+								print("elif hit")
+								next_inst = insts.next()
+								if next_inst.getMnemonicString() == "MOV":
+									pcode = next_inst.getPcode()
+									for param in pcode:
+										nxt_inst_in = param.getInput(0)
+										if nxt_inst_in.isConstant():
+											str_len = nxt_inst_in.getOffset()
+											try:
+												print("updated ", nxt_inst_in.getOffset())
+												print("updated ", d_addr)
+												rec_string = createAsciiString(d_addr, str_len)
+											except:
+												print("unable to make string using const str_size")
+												break
+										else:
+											break
+								else:
+									break
+							#else:
+							#	break
+				
 				else:
 					continue
-
 		
-
-
+		else:
+			continue
 
 
 
