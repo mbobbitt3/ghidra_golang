@@ -42,10 +42,6 @@ def pclntab_check(addr):
 	return True
 
 def find_moduledata_pe(pclntab, magic):
-	prog = getCurrentProgram()
-	rdata = prog.getMemory().getBlock('.rdata')
-	rdata_start = rdata.getStart()
-	rdata_size = rdata.getSize()
 	"""
 	pclntab_refs = getReferencesTo(pclntab) #moduledata will reference offset to pclntab
 	print("find_module data executing...")	
@@ -59,6 +55,7 @@ def find_moduledata_pe(pclntab, magic):
 		else:
 			print("mod data not found")
 	"""
+	prog = getCurrentProgram()
 	data_start = prog.getMemory().getBlock('.data').getStart()
 	data_end = prog.getMemory().getBlock('.data').getEnd()
 	mod_data = data_start 
@@ -70,9 +67,6 @@ def find_moduledata_pe(pclntab, magic):
 
 		if check_module_data(mod_data, magic):
 			print("module data found at: ", mod_data)
-			print("module data is located in: ",
-				prog.getMemory().getBlock(mod_data).getName()
-			)
 			return mod_data
 
 	return None
@@ -81,15 +75,21 @@ def check_module_data(addr, magic):
 	offset = 22
 	text = getAddressAt(addr.add(offset * ptr_size)) 
 	mem = currentProgram.getMemory()	
-	print("check_module_data on: ", addr)
 	if text == mem.getBlock(".text").getStart():
 		return True
 	else:
 		print("test failed")
 		return False
-
+def get_typelinks(mod_data, magic):
+	#these are the numbers used in previous research for Go version 1.17+
+	offset = 35 
+	offset1 = 42 
+	d_type = getAddressAt(mod_data.add(offset * ptr_size)
+	e_type = getAddressAt(mod_data.add((offset + 1) * ptr_size)
+	typelinks = getAddressAt(mod_data.add(offset1 * ptr_size)
+	num_types = getAddressAt(mod_data.add((offset1 +1) * ptr_size)
+	return d_type, e_type, typelinks, num_types
 def main_pe():
 	pclntab, magic = locate_pclntab_pe()	
-	print(pclntab, magic)
 	find_moduledata_pe(pclntab, magic) 
 main_pe()
