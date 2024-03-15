@@ -1,5 +1,12 @@
+import struct
 from ghidra.program.model.symbol.SourceType import *
 from ghidra.program.model.mem import *
+
+
+ptr_size = currentProgram.getDefaultPointerSize()
+def getAddressAt(address):
+	return currentProgram.getAddressFactory().getAddress(hex(getInt(address)))
+
 def locate_pclntab_pe():
 	pclntab_magic = ['\xfb\xff\xff\xff\x00\x00',
 		'\xfa\xff\xff\xff\x00\x00',
@@ -15,12 +22,12 @@ def locate_pclntab_pe():
 		pclntab = rdata_start
 		while pclntab != None:
 			pclntab = findBytes(pclntab.add(1), magic)
+			if pclntab is None:
+				continue
 			if pclntab_check(pclntab):
 				print("pclntab located")
 				print(pclntab)
 				return pclntab, magic
-			else:
-				continue
 	return pclntab, None
 
 def pclntab_check(addr):
@@ -31,7 +38,7 @@ def pclntab_check(addr):
 	
 	if(pc_arch_byte != 1 and pc_arch_byte != 2 and pc_arch_byte != 4) or (pc_ptr_sz != 4 and pc_ptr_sz != 8):
 		return False
-	
+
 	return True
 
 def find_moduledata_pe(pclntab, magic):
@@ -39,11 +46,50 @@ def find_moduledata_pe(pclntab, magic):
 	rdata = prog.getMemory().getBlock('.rdata')
 	rdata_start = rdata.getStart()
 	rdata_size = rdata.getSize()
-	pclntab_refs = getRefeencesTo(pclntab) #moduledata will reference offset to pclntab
-	
+	"""
+	pclntab_refs = getReferencesTo(pclntab) #moduledata will reference offset to pclntab
+	print("find_module data executing...")	
+	print("pclntab refs len: ", len(pclntab_refs))
 	for i in range(len(pclntab_refs)):
 		mod_data = pclntab_refs[i].getFromAddress()
+		print(mod_data)
+		if check_module_data(mod_data, magic):
+			print("Module Data Found")
+			print(mod_data)
+		else:
+			print("mod data not found")
+	"""
+	data_start = prog.getMemory().getBlock('.data').getStart()
+	data_end = prog.getMemory().getBlock('.data').getEnd()
+	mod_data = data_start 
+	while mod_data.compareTo(data_end) <= 0:
+		s = struct.pack("<I", pclntab.getOffset())
+		mod_data = findBytes(mod_data.add(1), s)
+		if mod_data == None:
+			return None
 
+		if check_module_data(mod_data, magic):
+			print("module data found at: ", mod_data)
+			print("module data is located in: ",
+				prog.getMemory().getBlock(mod_data).getName()
+			)
+			return mod_data
+
+	return None
+
+def check_module_data(addr, magic):
+	offset = 22
+	text = getAddressAt(addr.add(offset * ptr_size)) 
+	mem = currentProgram.getMemory()	
+	print("check_module_data on: ", addr)
+	if text == mem.getBlock(".text").getStart():
+		return True
+	else:
+		print("test failed")
+		return False
 
 def main_pe():
 	pclntab, magic = locate_pclntab_pe()	
+	print(pclntab, magic)
+	find_moduledata_pe(pclntab, magic) 
+main_pe()
