@@ -3,7 +3,6 @@ from ghidra.program.model.symbol.SourceType import *
 from ghidra.program.model.mem import *
 
 
-ptr_size = currentProgram.getDefaultPointerSize()
 def getAddressAt(address):
 	return currentProgram.getAddressFactory().getAddress(hex(getInt(address)))
 
@@ -80,16 +79,114 @@ def check_module_data(addr, magic):
 	else:
 		print("test failed")
 		return False
+
 def get_typelinks(mod_data, magic):
 	#these are the numbers used in previous research for Go version 1.17+
 	offset = 35 
 	offset1 = 42 
-	d_type = getAddressAt(mod_data.add(offset * ptr_size)
-	e_type = getAddressAt(mod_data.add((offset + 1) * ptr_size)
-	typelinks = getAddressAt(mod_data.add(offset1 * ptr_size)
-	num_types = getAddressAt(mod_data.add((offset1 +1) * ptr_size)
-	return d_type, e_type, typelinks, num_types
+	#start of section containing custom type info
+	s_type = mod_data.add(offset * ptr_size)
+	#end of section containing custom type info
+	#e_type = getAddressAt(mod_data.add((offset + 1) * ptr_size))
+	e_type = mod_data.add((offset + 1) * ptr_size)
+	print("e_type: ", e_type)
+	#offsets to go defined types
+	#typelinks = getAddressAt(mod_data.add(offset1 * ptr_size))
+	typelinks = mod_data.add(offset1 * ptr_size)
+	print("Ptr_size: ", ptr_size)
+	print("typelinks: ", typelinks)
+	#num of type definitions
+	num_types = getInt(mod_data.add((offset1 +1) * ptr_size))
+	print("num types: ", num_types)
+	return s_type, e_type, typelinks, num_types
+
+
+def type_recovery(type_addr):
+	if type_addr in recovered_types:
+		print("type already recovered at ", type_addr.getOffset())
+		return type_addr	
+	recovered_types.append(type_addr)
+	print("type recovered at addr: ", type_addr.getOffset())
+	tflag_uncomm = getByte(type_addr.add(2*ptr_size+4))&0x01
+	tflag_ex_star = getByte(type_addr.add(2*ptr_size+4))&0x02 #extra star flag
+	kind = getByte(type_addr.add(2*ptr_size+7))&0x1F
+	print "KIND: 0x%x" % kind
+	name_off = getInt(type_addr.add(4 * ptr_size + 8))
+	name_len = getByte(type_addr.add(name_off + len_off))
+	name_addr = s_type.add(name_off + len_off + 1)
+	name = createAsciiString(name_addr, name_len)
+	if tflag_ex_star:
+		name_type = name.getValue()[1:]
+	else:
+		name_type = name.getValue()
+	print("name: ", name_type)
+	createLabel(type_addr, name_type.replace(" ", "_"), 1)
+	
+	#Function type
+	#// funcType represents a function type.
+	#//
+	#// A *rtype for each in and out parameter is stored in an array that
+	#// directly follows the funcType (and possibly its uncommonType). So
+	#// a function type with one method, one input, and one output is:
+	#//
+	#//	struct {
+	#//		funcType
+	#//		uncommonType
+	#//		[2]*rtype	 // [0] is in, [1] is out
+	#//	}
+	#type funcType struct {
+	#	rtype
+	#	inCount  uint16
+	#	outCount uint16 // top bit is set if last input parameter is ...
+	#}	
+"""	
+	if kind == 0x13:
+		in_count = struct.unpack('<H',getBytes(type_addr.add(4 * ptr_size + 8 + 8), 2))[0]
+		out_bytes = getBytes(type_addr.add(4 * ptr_size + 8 + 8 + 2), 2)
+		#top bit is set if last param parameter is ...
+		last_param = out_bytes[1] & 0x80
+		out_bytes[1] = out_bytes[1] & 0x7F
+		print last_param
+ 		out_count = struct.unpack('<H',out_bytes)[0]
+        params = []
+        outputs= []
+        for i in range(in_count):
+            param  = getAddressAt(type_addr.add(4 * ptr_size + 8 + 8 + ptr_size + tflag_uncomm * 16 + i * ptr_size))
+            recover_types(param)
+            params.append(getSymbolAt(param).getName())
+        for i in range(out_count):
+            output = getAddressAt(type_address.add(4*ptr_size+8+8+ptr_size +tflag_uncomm*16 +in_count*ptr_size + i*ptr_size))
+            recover_types(output)
+            outputs.append(getSymbolAt(output).getName())
+        if last_param == 0x80 and len(params) > 0:
+            params[-1] = params[-1].replace("[]","...")
+        setPreComment(type_address,"func(" + ", ".join(params) + ")" + " (" +  ", ".join(outputs) + ")")
+"""
+def getAllTypes(typelinks, etypelinks, s_type):
+    if typelinks is not None:
+        p = typelinks
+        while p != e_typelinks:
+			try:
+				type_offset = getInt(p)
+				type_address = s_type.add(type_offset)
+				recover_types(type_address)
+				p = p.add(4)
+			except:
+				p = p.add(4)
+    print len(recovered_types)
+    return len(recovered_types)
+
 def main_pe():
 	pclntab, magic = locate_pclntab_pe()	
-	find_moduledata_pe(pclntab, magic) 
-main_pe()
+	mod_data = find_moduledata_pe(pclntab, magic) 
+	print(mod_data)
+	s_type, e_type, typelinks, num_types = get_typelinks(mod_data, magic)
+	e_typelinks = typelinks.add(num_types * 4)
+	return typelinks, e_typelinks, s_type
+
+recovered_types = []
+ptr_size = currentProgram.getDefaultPointerSize()
+len_off = 2 #this should be determined via a function but for 1.17+ this is the magic value
+typelinks, e_typelinks, s_type = main_pe()
+print("typelinks: ", typelinks, "e_typelinks: ", e_typelinks) 
+getAllTypes(typelinks, e_typelinks, s_type)
