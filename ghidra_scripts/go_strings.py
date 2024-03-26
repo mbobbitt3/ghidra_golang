@@ -26,7 +26,7 @@ def dynamic_str_recovery():
 	funcs = fm.getFunctions(True)
 	lst = p.getListing()
 	for f in funcs:
-		if "main." in f.getName():
+		if "main." or "github" in f.getName():
 			f_body = f.getBody()
 			insts = lst.getInstructions(f_body, True)
 			while insts.hasNext():
