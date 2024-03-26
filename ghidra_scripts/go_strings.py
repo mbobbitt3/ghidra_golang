@@ -46,12 +46,11 @@ def dynamic_str_recovery():
 								d = data.getValue()
 								try:
 									rec_string = createAsciiString(d, str_len)
-									print(rec_string)
+									print("recovered string:", rec_string, "at addr:", d_addr, "using PTR_DATA")
 								except:
 									print("unable to make string using PTR_DATA")
 
 							else:
-								print("elif hit")
 								next_inst = insts.next()
 								if next_inst.getMnemonicString() == "MOV":
 									pcode = next_inst.getPcode()
@@ -60,9 +59,9 @@ def dynamic_str_recovery():
 										if nxt_inst_in.isConstant():
 											str_len = nxt_inst_in.getOffset()
 											try:
-												print("updated ", nxt_inst_in.getOffset())
-												print("updated ", d_addr)
 												rec_string = createAsciiString(d_addr, str_len)
+												print("recovered string:", rec_string, "at addr:", d_addr, "using " \ 
+                                                "const str_size")
 											except:
 												print("unable to make string using const str_size")
 												break
