@@ -54,10 +54,8 @@ def parse_pclntab(pclntab_addr):
 		offset = getInt(pclntab_addr.add(8 + 7 * ptr_sz)) #offset within function table
 
 	func_table = pclntab_addr.add(offset)
-	print(func_table)
 	ft = func_table #shorter for referencing object
 	ftab_field_sz = 4 #4 fields per entry in table
-	print(num_funcs)
 	for i in range(num_funcs):
 		f_addr = prog.getAddressFactory().getAddress(hex(getInt(ft) + start_text).rstrip("L"))
 		ft = ft.add(ftab_field_sz)
