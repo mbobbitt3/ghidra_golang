@@ -11,14 +11,13 @@
 ---
 
 ## About the Project
-This project adds support to Ghidra for: recovering function names, strings, and types and structures from Go binaries
-up to Go version 1.22. And provides samples to test the scripts against.
+This project extends GoLang analysis capabilities for Ghidra version 10.3.3 (most current version during this project's development) to include: recovering function names, better string recovery, as well as type and structure recovery up to Go version 1.22. Samples are provided to test the scripts against.
 
 ---
 
 ## Features
 - Function Name Recovery: allows for recovering all function names from Go program 
-- Strings: recovers strings within relevant functions recovered from the name recovery script.
+- Strings: recovers strings within relevant functions recovered from the name recovery script (you can modify code to your liking, but default I think is pretty good).
 - Type Recovery: recovers types and structures within the program and displays them nicely in decompilation.
 
 ---
@@ -28,12 +27,12 @@ Add the script directory into Ghidra's known script paths to use scripts in GUI 
 mode.
 ## Usage 
 The only thing of note is that the string recovery script is dependent on knowing function names recovered from the name
-recovery script, in order to not extract useless strings from the Go Runtime. THis makes the script faster and gives us
+recovery script, in order to not extract useless strings from the Go Runtime. This makes the script faster and gives us
 relevant strings for malware analysis. This can be changed in the string recovery script should you want to expand the
 scope of recovery.
 
 ## License
-see license.md
+See license.md
 
 ## Contact
-please email me with questions or concerns at mattbobbitt3@gmail.com. Or feel free to open an issue.
+Please email me with questions or concerns at mattbobbitt3@gmail.com. Or feel free to open an issue.
